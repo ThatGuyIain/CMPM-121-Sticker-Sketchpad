@@ -31,6 +31,7 @@ canvas.addEventListener("mouseup", () => {
   if (currentStroke) {
     Points.push(currentStroke);
     currentStroke = null;
+    redoStack.length = 0;
     canvas.dispatchEvent(new Event("drawing-changed"));
   }
 });
@@ -59,6 +60,14 @@ canvas.addEventListener("drawing-changed", () => {
   });
 });
 
+const undoButton = document.createElement("button");
+undoButton.textContent = "Undo";
+document.body.appendChild(undoButton);
+
+const redoButton = document.createElement("button");
+redoButton.textContent = "Redo";
+document.body.appendChild(redoButton);
+
 const clearButton = document.createElement("button");
 clearButton.innerHTML = "Clear";
 document.body.appendChild(clearButton);
@@ -66,4 +75,22 @@ document.body.appendChild(clearButton);
 clearButton.addEventListener("click", () => {
   Points.length = 0;
   canvas.dispatchEvent(new Event("drawing-changed")); // Trigger redraw
+});
+
+const redoStack: { x: number; y: number }[][] = [];
+
+undoButton.addEventListener("click", () => {
+  if (Points.length > 0) {
+    const lastStroke = Points.pop()!; // Remove from display
+    redoStack.push(lastStroke); // Save for redo
+    canvas.dispatchEvent(new Event("drawing-changed")); // Refresh
+  }
+});
+
+redoButton.addEventListener("click", () => {
+  if (redoStack.length > 0) {
+    const restoredStroke = redoStack.pop()!; // Take it back
+    Points.push(restoredStroke); // Add to drawing
+    canvas.dispatchEvent(new Event("drawing-changed")); // Refresh
+  }
 });
