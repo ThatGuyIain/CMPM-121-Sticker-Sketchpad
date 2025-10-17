@@ -1,11 +1,4 @@
-.icon {
-  width: 64px;
-  vertical-align: top;
-  border: 1px solid salmon;
-}
-#canvas {
+canvas {
   border: 3px solid black;
-  width: 256px;
-  height: 256px;
   box-shadow: 10px 10px 8px #802230;
 }
