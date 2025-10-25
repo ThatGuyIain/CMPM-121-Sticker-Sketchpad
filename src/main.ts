@@ -16,17 +16,33 @@ interface Command {
   drag(x: number, y: number): void;
 }
 
+type MarkerStyle = "thin" | "thick";
+
+let currentStyle: MarkerStyle = "thin"; // Default tool
+
 const displayList: Command[] = [];
 
-function createLineCommand(startX: number, startY: number): Command {
+function createLineCommand(
+  startX: number,
+  startY: number,
+  style: MarkerStyle,
+): Command {
   const points: [number, number][] = [[startX, startY]];
 
   return {
     drag(x, y) {
       points.push([x, y]);
     },
+
     display(ctx) {
       if (points.length === 0) return;
+
+      // ✨ Set line style here — part of the command!
+      ctx.lineWidth = style === "thick" ? 6 : 3;
+      ctx.lineCap = "round";
+      ctx.lineJoin = "round";
+      ctx.strokeStyle = "black";
+
       ctx.beginPath();
       ctx.moveTo(points[0][0], points[0][1]);
       for (const [x, y] of points.slice(1)) {
@@ -42,13 +58,21 @@ let isDrawing = false;
 let clearSnapshot: Command[] | null = null;
 
 canvas.addEventListener("mousedown", (e) => {
-  if (e.button !== 0) return; // Only left-click
+  if (e.button !== 0) return;
+
+  // ✅ Safe check: make sure e.target exists and is a Node
+  const target = e.target;
+  if (!target || !canvas.contains(target as Node)) return;
+
+  // Invalidate undo of clear when new drawing starts
   clearSnapshot = null;
+
   const rect = canvas.getBoundingClientRect();
   const x = e.clientX - rect.left;
   const y = e.clientY - rect.top;
 
-  currentCommand = createLineCommand(x, y);
+  // ✅ Pass currentStyle here!
+  currentCommand = createLineCommand(x, y, currentStyle);
   displayList.push(currentCommand);
   isDrawing = true;
   e.preventDefault();
@@ -126,3 +150,36 @@ redoButton.addEventListener("click", () => {
   displayList.push(command);
   canvas.dispatchEvent(new Event("drawing-changed"));
 });
+
+const thinButton = document.createElement("button");
+thinButton.textContent = "○";
+thinButton.title = "Thin Marker";
+document.body.appendChild(thinButton);
+const thickButton = document.createElement("button");
+thickButton.textContent = "●";
+thickButton.title = "Thick Marker";
+document.body.appendChild(thickButton);
+
+function updateMarkerUI() {
+  thinButton.style.filter = currentStyle === "thin"
+    ? "brightness(0.8)"
+    : "none";
+  thickButton.style.filter = currentStyle === "thick"
+    ? "brightness(0.8)"
+    : "none";
+}
+
+updateMarkerUI();
+
+thinButton.addEventListener("click", () => {
+  currentStyle = "thin";
+  updateMarkerUI();
+});
+
+thickButton.addEventListener("click", () => {
+  currentStyle = "thick";
+  updateMarkerUI();
+});
+
+thinButton.style.fontSize = "18px";
+thickButton.style.fontSize = "24px";
