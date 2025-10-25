@@ -20,6 +20,21 @@ type MarkerStyle = "thin" | "thick";
 
 let currentStyle: MarkerStyle = "thin"; // Default tool
 
+// Create preview dot
+const previewDot = document.createElement("div");
+previewDot.style.position = "absolute";
+previewDot.style.width = currentStyle === "thin" ? "6px" : "12px";
+previewDot.style.height = currentStyle === "thin" ? "6px" : "12px";
+previewDot.style.borderRadius = "50%";
+previewDot.style.backgroundColor = "black";
+previewDot.style.transform = "translate(-50%, -50%)"; // center on cursor
+previewDot.style.pointerEvents = "none"; // don't interfere with clicks
+previewDot.style.zIndex = "1000";
+previewDot.style.display = "none"; // hidden until mouse enters canvas
+
+// Add to body so it can float anywhere
+document.body.append(previewDot);
+
 const displayList: Command[] = [];
 
 function createLineCommand(
@@ -86,6 +101,41 @@ canvas.addEventListener("mousemove", (e) => {
 
   currentCommand.drag(x, y);
   canvas.dispatchEvent(new Event("drawing-changed"));
+});
+
+// Show preview when mouse enters canvas
+canvas.addEventListener("mousemove", (e) => {
+  if (isDrawing) {
+    previewDot.style.display = "none";
+    return;
+  }
+
+  // Position preview dot under cursor
+  previewDot.style.display = "block";
+  previewDot.style.left = `${e.clientX}px`;
+  previewDot.style.top = `${e.clientY}px`;
+});
+
+// Hide if mouse leaves canvas
+canvas.addEventListener("mouseleave", () => {
+  previewDot.style.display = "none";
+});
+
+// Also hide during actual drawing (in mousedown)
+canvas.addEventListener("mousedown", (e) => {
+  if (e.button !== 0) return;
+
+  clearSnapshot = null;
+  previewDot.style.display = "none"; // hide preview
+
+  const rect = canvas.getBoundingClientRect();
+  const x = e.clientX - rect.left;
+  const y = e.clientY - rect.top;
+
+  currentCommand = createLineCommand(x, y, currentStyle);
+  displayList.push(currentCommand);
+  isDrawing = true;
+  e.preventDefault();
 });
 
 canvas.addEventListener("mouseup", () => {
@@ -161,12 +211,14 @@ thickButton.title = "Thick Marker";
 document.body.appendChild(thickButton);
 
 function updateMarkerUI() {
-  thinButton.style.filter = currentStyle === "thin"
-    ? "brightness(0.8)"
-    : "none";
-  thickButton.style.filter = currentStyle === "thick"
-    ? "brightness(0.8)"
-    : "none";
+  // Update button styles
+  thinButton.style.fontWeight = currentStyle === "thin" ? "bold" : "normal";
+  thickButton.style.fontWeight = currentStyle === "thick" ? "bold" : "normal";
+
+  // Update preview dot size
+  const size = currentStyle === "thin" ? "6px" : "12px";
+  previewDot.style.width = size;
+  previewDot.style.height = size;
 }
 
 updateMarkerUI();
