@@ -11,54 +11,73 @@ canvas.width = 256;
 canvas.height = 256;
 document.body.appendChild(canvas);
 
-const ctx = canvas.getContext("2d")!;
+interface Command {
+  display(ctx: CanvasRenderingContext2D): void;
+  drag(x: number, y: number): void;
+}
 
-const Points: { x: number; y: number }[][] = [];
+const displayList: Command[] = [];
 
-let currentStroke: { x: number; y: number }[] | null = null;
+function createLineCommand(startX: number, startY: number): Command {
+  const points: [number, number][] = [[startX, startY]];
+
+  return {
+    drag(x, y) {
+      points.push([x, y]);
+    },
+    display(ctx) {
+      if (points.length === 0) return;
+      ctx.beginPath();
+      ctx.moveTo(points[0][0], points[0][1]);
+      for (const [x, y] of points.slice(1)) {
+        ctx.lineTo(x, y);
+      }
+      ctx.stroke();
+    },
+  };
+}
+
+let currentCommand: Command | null = null;
+let isDrawing = false;
+let clearSnapshot: Command[] | null = null;
 
 canvas.addEventListener("mousedown", (e) => {
-  currentStroke = [{ x: e.offsetX, y: e.offsetY }];
+  if (e.button !== 0) return; // Only left-click
+  clearSnapshot = null;
+  const rect = canvas.getBoundingClientRect();
+  const x = e.clientX - rect.left;
+  const y = e.clientY - rect.top;
+
+  currentCommand = createLineCommand(x, y);
+  displayList.push(currentCommand);
+  isDrawing = true;
+  e.preventDefault();
 });
 
 canvas.addEventListener("mousemove", (e) => {
-  if (currentStroke) {
-    currentStroke.push({ x: e.offsetX, y: e.offsetY });
-  }
+  if (!isDrawing || !currentCommand) return;
+  const rect = canvas.getBoundingClientRect();
+  const x = e.clientX - rect.left;
+  const y = e.clientY - rect.top;
+
+  currentCommand.drag(x, y);
+  canvas.dispatchEvent(new Event("drawing-changed"));
 });
 
 canvas.addEventListener("mouseup", () => {
-  if (currentStroke) {
-    Points.push(currentStroke);
-    currentStroke = null;
-    redoStack.length = 0;
-    canvas.dispatchEvent(new Event("drawing-changed"));
-  }
+  isDrawing = false;
+  currentCommand = null;
 });
 
-canvas.addEventListener("mouseleave", () => {
-  if (currentStroke) {
-    Points.push(currentStroke);
-    currentStroke = null;
-    canvas.dispatchEvent(new Event("drawing-changed"));
-  }
-});
-
-canvas.addEventListener("drawing-changed", () => {
+function redraw() {
+  const ctx = canvas.getContext("2d")!;
   ctx.clearRect(0, 0, canvas.width, canvas.height);
+  for (const command of displayList) {
+    command.display(ctx);
+  }
+}
 
-  // Redraw all strokes
-  Points.forEach((stroke) => {
-    if (stroke.length > 0) {
-      ctx.beginPath();
-      ctx.moveTo(stroke[0].x, stroke[0].y);
-      for (let i = 1; i < stroke.length; i++) {
-        ctx.lineTo(stroke[i].x, stroke[i].y);
-      }
-      ctx.stroke();
-    }
-  });
-});
+canvas.addEventListener("drawing-changed", redraw);
 
 const undoButton = document.createElement("button");
 undoButton.textContent = "Undo";
@@ -72,25 +91,38 @@ const clearButton = document.createElement("button");
 clearButton.innerHTML = "Clear";
 document.body.appendChild(clearButton);
 
+function saveClearState() {
+  if (displayList.length > 0) {
+    clearSnapshot = displayList.slice(); // save all commands
+  }
+}
+
 clearButton.addEventListener("click", () => {
-  Points.length = 0;
-  canvas.dispatchEvent(new Event("drawing-changed")); // Trigger redraw
+  saveClearState();
+
+  displayList.length = 0;
+  redoStack.length = 0; // clear redo when new action happens
+  canvas.dispatchEvent(new Event("drawing-changed"));
 });
 
-const redoStack: { x: number; y: number }[][] = [];
+const undoStack: Command[] = [];
+const redoStack: Command[] = [];
 
 undoButton.addEventListener("click", () => {
-  if (Points.length > 0) {
-    const lastStroke = Points.pop()!; // Remove from display
-    redoStack.push(lastStroke); // Save for redo
-    canvas.dispatchEvent(new Event("drawing-changed")); // Refresh
+  if (clearSnapshot) {
+    // If there's a clear snapshot, restore it
+    displayList.push(...clearSnapshot);
+    clearSnapshot = null;
+  } else if (displayList.length > 0) {
+    const cmd = displayList.pop()!;
+    redoStack.push(cmd);
   }
+  canvas.dispatchEvent(new Event("drawing-changed"));
 });
 
 redoButton.addEventListener("click", () => {
-  if (redoStack.length > 0) {
-    const restoredStroke = redoStack.pop()!; // Take it back
-    Points.push(restoredStroke); // Add to drawing
-    canvas.dispatchEvent(new Event("drawing-changed")); // Refresh
-  }
+  if (undoStack.length === 0) return;
+  const command = undoStack.pop()!;
+  displayList.push(command);
+  canvas.dispatchEvent(new Event("drawing-changed"));
 });
