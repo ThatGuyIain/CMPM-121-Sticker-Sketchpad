@@ -344,3 +344,36 @@ stickerInput.addEventListener("keypress", (e) => {
     addStickerButton.click();
   }
 });
+
+const exportButton = document.createElement("button");
+exportButton.textContent = "💾 Export (1024×1024)";
+exportButton.title = "Download your sketch as a high-resolution PNG";
+document.body.appendChild(exportButton);
+
+const exportCanvas = document.createElement("canvas");
+exportCanvas.width = 1024;
+exportCanvas.height = 1024;
+
+exportButton.addEventListener("click", () => {
+  const ctx = exportCanvas.getContext("2d")!;
+
+  const scale = 1024 / 256;
+  ctx.clearRect(0, 0, 1024, 1024);
+  ctx.scale(scale, scale);
+
+  for (const command of displayList) {
+    command.display(ctx);
+  }
+  ctx.setTransform(1, 0, 0, 1, 0, 0); // reset
+
+  // Trigger download
+  const link = document.createElement("a");
+  link.download = `sticker-sketch-${Date.now()}.png`;
+  link.href = exportCanvas.toDataURL("image/png");
+  link.click();
+});
+
+const link = document.createElement("a");
+link.download = `sticker-sketch-${Date.now()}.png`;
+link.href = exportCanvas.toDataURL("image/png");
+link.click();
