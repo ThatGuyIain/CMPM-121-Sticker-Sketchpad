@@ -68,6 +68,27 @@ function createLineCommand(
   };
 }
 
+function createStickerCommand(x: number, y: number, emoji: string): Command {
+  return {
+    display(ctx) {
+      // Use emoji font to draw sticker
+      ctx.font = "32px sans-serif";
+      ctx.textAlign = "center";
+      ctx.textBaseline = "middle";
+      ctx.fillText(emoji, x, y);
+    },
+    drag(_nx, _ny) {
+    },
+  };
+}
+
+function updateStickerSelection() {
+  stickerA.style.fontWeight = currentSticker === "🎨" ? "bold" : "normal";
+  stickerB.style.fontWeight = currentSticker === "🌽" ? "bold" : "normal";
+  stickerC.style.fontWeight = currentSticker === "✨" ? "bold" : "normal";
+}
+
+let currentSticker: string = "🎨";
 let currentCommand: Command | null = null;
 let isDrawing = false;
 let clearSnapshot: Command[] | null = null;
@@ -75,7 +96,7 @@ let clearSnapshot: Command[] | null = null;
 canvas.addEventListener("mousedown", (e) => {
   if (e.button !== 0) return;
 
-  // ✅ Safe check: make sure e.target exists and is a Node
+  //Safe check: make sure e.target exists and is a Node
   const target = e.target;
   if (!target || !canvas.contains(target as Node)) return;
 
@@ -165,6 +186,21 @@ const clearButton = document.createElement("button");
 clearButton.innerHTML = "Clear";
 document.body.appendChild(clearButton);
 
+const stickerA = document.createElement("button");
+stickerA.textContent = "🎨";
+stickerA.title = "Art";
+document.body.appendChild(stickerA);
+
+const stickerB = document.createElement("button");
+stickerB.textContent = "🌽";
+stickerB.title = "Corn";
+document.body.appendChild(stickerB);
+
+const stickerC = document.createElement("button");
+stickerC.textContent = "✨";
+stickerC.title = "Sparkles";
+document.body.appendChild(stickerC);
+
 function saveClearState() {
   if (displayList.length > 0) {
     clearSnapshot = displayList.slice(); // save all commands
@@ -235,3 +271,35 @@ thickButton.addEventListener("click", () => {
 
 thinButton.style.fontSize = "18px";
 thickButton.style.fontSize = "24px";
+
+stickerA.addEventListener("click", () => {
+  currentSticker = "🎨";
+  updateStickerSelection();
+});
+
+stickerB.addEventListener("click", () => {
+  currentSticker = "🌽";
+  updateStickerSelection();
+});
+
+stickerC.addEventListener("click", () => {
+  currentSticker = "✨";
+  updateStickerSelection();
+});
+
+canvas.addEventListener("click", (e) => {
+  // Prevent accidental drawing or UI interaction
+  if (!canvas.contains(e.target as Node)) return;
+
+  // Get click position relative to canvas
+  const rect = canvas.getBoundingClientRect();
+  const x = e.clientX - rect.left;
+  const y = e.clientY - rect.top;
+
+  // Create and add sticker command
+  const stickerCmd = createStickerCommand(x, y, currentSticker);
+  displayList.push(stickerCmd);
+
+  // Notify system that drawing changed
+  canvas.dispatchEvent(new Event("drawing-changed"));
+});
