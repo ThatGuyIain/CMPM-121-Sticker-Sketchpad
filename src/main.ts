@@ -11,6 +11,8 @@ canvas.width = 256;
 canvas.height = 256;
 document.body.appendChild(canvas);
 
+const stickerButtons: { button: HTMLButtonElement; emoji: string }[] = [];
+
 interface Command {
   display(ctx: CanvasRenderingContext2D): void;
   drag(x: number, y: number): void;
@@ -52,7 +54,7 @@ function createLineCommand(
     display(ctx) {
       if (points.length === 0) return;
 
-      // ✨ Set line style here — part of the command!
+      // Set line style here — part of the command!
       ctx.lineWidth = style === "thick" ? 6 : 3;
       ctx.lineCap = "round";
       ctx.lineJoin = "round";
@@ -82,10 +84,32 @@ function createStickerCommand(x: number, y: number, emoji: string): Command {
   };
 }
 
+// Helper to create a sticker button
+function makeStickerButton(emoji: string) {
+  const btn = document.createElement("button");
+  btn.textContent = emoji;
+  btn.style.fontWeight = "normal";
+
+  // Select this emoji when clicked
+  btn.addEventListener("click", () => {
+    currentSticker = emoji;
+    updateStickerSelection();
+  });
+
+  // Save reference
+  stickerButtons.push({ button: btn, emoji });
+  document.body.appendChild(btn);
+}
+
+// Create preset stickers
+makeStickerButton("🎨");
+makeStickerButton("🌽");
+makeStickerButton("✨");
+
 function updateStickerSelection() {
-  stickerA.style.fontWeight = currentSticker === "🎨" ? "bold" : "normal";
-  stickerB.style.fontWeight = currentSticker === "🌽" ? "bold" : "normal";
-  stickerC.style.fontWeight = currentSticker === "✨" ? "bold" : "normal";
+  for (const { button, emoji } of stickerButtons) {
+    button.style.fontWeight = currentSticker === emoji ? "bold" : "normal";
+  }
 }
 
 let currentSticker: string = "🎨";
@@ -186,21 +210,6 @@ const clearButton = document.createElement("button");
 clearButton.innerHTML = "Clear";
 document.body.appendChild(clearButton);
 
-const stickerA = document.createElement("button");
-stickerA.textContent = "🎨";
-stickerA.title = "Art";
-document.body.appendChild(stickerA);
-
-const stickerB = document.createElement("button");
-stickerB.textContent = "🌽";
-stickerB.title = "Corn";
-document.body.appendChild(stickerB);
-
-const stickerC = document.createElement("button");
-stickerC.textContent = "✨";
-stickerC.title = "Sparkles";
-document.body.appendChild(stickerC);
-
 function saveClearState() {
   if (displayList.length > 0) {
     clearSnapshot = displayList.slice(); // save all commands
@@ -272,21 +281,6 @@ thickButton.addEventListener("click", () => {
 thinButton.style.fontSize = "18px";
 thickButton.style.fontSize = "24px";
 
-stickerA.addEventListener("click", () => {
-  currentSticker = "🎨";
-  updateStickerSelection();
-});
-
-stickerB.addEventListener("click", () => {
-  currentSticker = "🌽";
-  updateStickerSelection();
-});
-
-stickerC.addEventListener("click", () => {
-  currentSticker = "✨";
-  updateStickerSelection();
-});
-
 canvas.addEventListener("click", (e) => {
   // Prevent accidental drawing or UI interaction
   if (!canvas.contains(e.target as Node)) return;
@@ -302,4 +296,40 @@ canvas.addEventListener("click", (e) => {
 
   // Notify system that drawing changed
   canvas.dispatchEvent(new Event("drawing-changed"));
+});
+
+const stickerInput = document.createElement("input");
+stickerInput.type = "text";
+stickerInput.placeholder = "🥺";
+stickerInput.title = "Enter a custom emoji or symbol";
+stickerInput.style.width = "50px";
+stickerInput.style.fontSize = "16px";
+
+const addStickerButton = document.createElement("button");
+addStickerButton.textContent = "+";
+addStickerButton.title = "Add custom sticker";
+
+document.body.append(stickerInput, addStickerButton);
+
+addStickerButton.addEventListener("click", () => {
+  const input = stickerInput.value.trim();
+  if (!input) return; // Ignore empty
+
+  // Only allow one character? Or short string?
+  if (input.length > 3) {
+    alert("Please use a short sticker (1–3 characters)");
+    return;
+  }
+
+  // Add as new sticker
+  makeStickerButton(input);
+
+  // clear input
+  stickerInput.value = "";
+});
+
+stickerInput.addEventListener("keypress", (e) => {
+  if (e.key === "Enter") {
+    addStickerButton.click();
+  }
 });
