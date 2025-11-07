@@ -115,6 +115,7 @@ function updateStickerSelection() {
 let currentSticker: string = "🎨";
 let currentCommand: Command | null = null;
 let isDrawing = false;
+let _justDrew = false;
 let clearSnapshot: Command[] | null = null;
 
 canvas.addEventListener("mousedown", (e) => {
@@ -185,7 +186,12 @@ canvas.addEventListener("mousedown", (e) => {
 
 canvas.addEventListener("mouseup", () => {
   isDrawing = false;
+  _justDrew = true;
   currentCommand = null;
+
+  setTimeout(() => {
+    _justDrew = false;
+  }, 100);
 });
 
 function redraw() {
@@ -284,6 +290,11 @@ thickButton.style.fontSize = "24px";
 canvas.addEventListener("click", (e) => {
   // Prevent accidental drawing or UI interaction
   if (!canvas.contains(e.target as Node)) return;
+
+  if (_justDrew) {
+    _justDrew = false;
+    return;
+  }
 
   // Get click position relative to canvas
   const rect = canvas.getBoundingClientRect();
